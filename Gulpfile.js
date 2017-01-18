@@ -39,15 +39,33 @@ gulp.task('build', function(){
 			</div>
 		<!--</a>-->
 	</body>
+
+	<script type="text/javascript">
+		var add = document.getElementById('add');
+	</script>
+
 	</html>`;
 
 	var scssTemplate = `//Sets all variables
+
+	// enabling this will centralize the banner in the window
+	// and place a boder arround, you can also use this as
+	// you build your banner
+	$dev : false;
+
 	$width : 0px;
 	$height : 0px;
 
 	html, body {
 		margin: 0;
 		padding: 0;
+		position: relative;
+		@if $dev == true {
+			height: 100%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
 	}
 
 	#add {
@@ -56,6 +74,9 @@ gulp.task('build', function(){
 	background-color: white;
 	position: relative;
 	overflow: hidden;
+	@if $dev == true {
+		border: 1px dashed silver;
+	}
 	}`
 
 	fs.mkdirs('scss/', function (err) {
@@ -126,10 +147,13 @@ gulp.task('watch', function(){
 				gulp.start('compress', done);
 		}));
 		watch('scss/**/*.scss', batch(function (events, done) {
-					gulp.start('sass', done);
-			}));
-			watch('css/style.css', batch(function(events, done) {
-				gulp.start('autoprefixer', done);
+				gulp.start('sass', done);
+		}));
+		watch('css/style.css', batch(function(events, done) {
+			gulp.start('autoprefixer', done);
+		}));
+		watch(['css/style.min.css', '*.html', '/images/*'], batch(function(events, done) {
+			gulp.start('dist', done);
 		}))
 });
 
@@ -147,8 +171,6 @@ gulp.task('dist', function(){
 			}))
 			.pipe(gulp.dest('dist/'));
 
-			gulp.src('dist/**')
-				.pipe(zip('archive.zip'))
-				.pipe(gulp.dest('dist'));
+			gulp.src('dist/**').pipe(zip('archive.zip')).pipe(gulp.dest('dist'));
 
 });
