@@ -25,4 +25,4 @@ will watch the scss and script folder and run a sass compiler with a autoprefixe
 
 ####Gulp dist
 
-	This will copy your images to the dist folder and will copy and inline all css and js into your index.html file and finalize by creating a .zip file of the files.
+This will copy your images to the dist folder and will copy and inline all css and js into your index.html file and finalize by creating a .zip file of the files.
