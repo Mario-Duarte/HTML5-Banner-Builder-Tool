@@ -1,4 +1,5 @@
 var gulp = require('gulp'),
+browserSync = require('browser-sync').create(),
  fs = require('fs-extra'),
  sass = require('gulp-sass'),
  sourcemaps = require('gulp-sourcemaps'),
@@ -144,17 +145,20 @@ gulp.task('autoprefixer', function(){
 
 gulp.task('watch', function(){
 	watch('scripts/*.js', batch(function (events, done) {
-				gulp.start('compress', done);
-		}));
-		watch('scss/**/*.scss', batch(function (events, done) {
-				gulp.start('sass', done);
-		}));
-		watch('css/style.css', batch(function(events, done) {
-			gulp.start('autoprefixer', done);
-		}));
-		watch(['css/style.min.css', '*.html', '/images/*'], batch(function(events, done) {
-			gulp.start('dist', done);
-		}))
+			gulp.start('compress', done);
+	}));
+	watch('scss/**/*.scss', batch(function (events, done) {
+			gulp.start('sass', done);
+	}));
+	watch('css/style.css', batch(function(events, done) {
+		gulp.start('autoprefixer', done);
+	}));
+	watch(['css/style.min.css', '*.html', '/images/*'], batch(function(events, done) {
+		gulp.start('dist', done);
+	}))
+	browserSync.init({ server: {baseDir: "./dist/"} });
+	watch('scss/**/*.scss', ['sass']).on('change', browserSync.reload);
+	watch('scripts/*.js', ['compress']).on('change', browserSync.reload);
 });
 
 gulp.task('dist', function(){
