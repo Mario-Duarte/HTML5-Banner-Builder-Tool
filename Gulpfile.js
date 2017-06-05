@@ -1,22 +1,77 @@
+// ========================================================
+// Load in all the required libs =======================================
+// ========================================================
 var gulp = require('gulp'),
-browserSync = require('browser-sync').create(),
- fs = require('fs-extra'),
- sass = require('gulp-sass'),
- sourcemaps = require('gulp-sourcemaps'),
- autoprefixer = require('gulp-autoprefixer'),
- gulpSequence = require('gulp-sequence'),
- uglify = require('gulp-uglify'),
- watch = require('gulp-watch'),
- batch = require('gulp-batch'),
- rename = require("gulp-rename"),
- inline = require('gulp-inline'),
- minifyCss = require('gulp-minify-css'),
- zip = require('gulp-zip'),
- neat = require('node-neat').includePaths;
+		browserSync = require('browser-sync').create(),
+		syncy = require('syncy'),
+		fs = require('fs-extra'),
+		gulpIf = require('gulp-if'),
+		sass = require('gulp-sass'),
+		sourcemaps = require('gulp-sourcemaps'),
+		autoprefixer = require('gulp-autoprefixer'),
+		runSequence = require('run-sequence'),
+		plumber = require('gulp-plumber'),
+		uglify = require('gulp-uglify'),
+		watch = require('gulp-watch'),
+		batch = require('gulp-batch'),
+		rename = require("gulp-rename"),
+		inline = require('gulp-inline'),
+		minifyCss = require('gulp-minify-css'),
+		zip = require('gulp-zip'),
+		util = require('gulp-util'),
+		del = require('del'),
+		stripCssComments = require('gulp-strip-css-comments'),
+		stripDebug = require('gulp-strip-debug'),
+		neat = require('node-neat').includePaths; // neat documentation can be found at: http://neat.bourbon.io/docs/latest/
 
-gulp.task('default', function() {
+// ========================================================
+// Options and other variables
+// ========================================================
+
+var autoprefixeroptions = {
+		browsers: ['last 3 versions', 'IE 10', 'IE 11'],
+		cascade: false
+};
+
+var sassOptions = {
+	outputStyle: 'compressed',
+	includePaths: require('node-neat').includePaths
+};
+
+// ========================================================
+// Help task that outputs into the console all the commands and their options =========
+// ========================================================
+gulp.task('help', function() {
+	util.log(util.colors.cyan('========='));
+	util.log(util.colors.cyan('Gulp help - task list'));
+	util.log(util.colors.cyan('========='));
+	util.log(util.colors.magenta('gulp', util.colors.cyan('--build --sync --zip'), util.colors.white(' | optional parameters')));
+	util.log(util.colors.magenta('gulp build'));
+	util.log(util.colors.magenta('gulp watch', util.colors.cyan('--dev --zip'), util.colors.white(' | optional parameters')));
+	util.log(util.colors.magenta('gulp zip'));
+	util.log(util.colors.cyan('For more information please read the readme.md file provided.'));
 });
 
+// ========================================================
+// Default task ================================================
+// ========================================================
+gulp.task('default', function() {
+	if ( util.env.build == true ) {
+		gulp.start('build');
+	} else {
+		runSequence(['sass','autoprefixer', 'scripts'], 'dist')
+		if ( util.env.sync == true ) {
+			gulp.start('browserSync');
+		}
+		if ( util.env.zip == true ) {
+			gulp.start('zip');
+		}
+	}
+});
+
+// ========================================================
+// Gulp build Task - creates the neccessary folders and file templates for the banner =====
+// ========================================================
 gulp.task('build', function(){
 
 	var indexTemplate = `<!doctype html>
@@ -82,48 +137,56 @@ gulp.task('build', function(){
 
 	fs.mkdirs('scss/', function (err) {
 		if (err) return console.error(err)
-		console.log("Built scss/ successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('scss/'), ' successfully!'));
 	})
 
 	fs.mkdirs('scripts/vendor/', function (err) {
 		if (err) return console.error(err)
-		console.log("Built scripts/vendor successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('scripts/vendor'), ' successfully!'));
 	})
 
 	fs.mkdirs('css/', function (err) {
 		if (err) return console.error(err)
-		console.log("Built css/ successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('css/'), ' successfully!'));
 	})
 
 	fs.mkdirs('images/', function (err) {
 		if (err) return console.error(err)
-		console.log("Built images/ successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('images/'), ' successfully!'));
 	})
 
 	fs.outputFile('index.html', indexTemplate, function (err) {
 		if (err) return console.error(err)
-		console.log("Built index.html successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('index.html'), ' successfully!'));
 	})
 
 	fs.outputFile('scss/style.scss', scssTemplate, function (err) {
 		if (err) return console.error(err)
-		console.log("Built style.scss successfully!")
+		util.log(util.colors.blue('Built ', util.colors.white.underline('style.scss'), ' successfully!'));
 	})
 
 });
 
+// ========================================================
+// sass task ==================================================
+// ========================================================
 gulp.task('sass', function () {
+	if ( util.env.dev == true ) { var dev = false; } else { var dev = true; }
 	return gulp.src('./scss/**/*.scss')
-		.pipe(sass({
-			outputStyle: 'compressed',
-			includePaths: require('node-neat').includePaths
-		}).on('error', sass.logError))
+		.pipe(sass(sassOptions).on('error', sass.logError))
+		.pipe(gulpIf(dev, stripCssComments()))
 		.pipe(sourcemaps.write('./css'))
 		.pipe(gulp.dest('./css'));
 });
 
-gulp.task('compress', function() {
+// ========================================================
+// scripts task ================================================
+// ========================================================
+gulp.task('scripts', function() {
+	if ( util.env.dev == true ) { var dev = false; } else { var dev = true; }
 	return gulp.src('./scripts/*.js')
+		.pipe(plumber())
+		.pipe(gulpIf(dev, stripDebug()))
 		.pipe(uglify())
 		.pipe(rename({
 			suffix: '.min'
@@ -131,21 +194,24 @@ gulp.task('compress', function() {
 		.pipe(gulp.dest('./js/'));
 });
 
+// ========================================================
+// autoprefixer task =============================================
+// ========================================================
 gulp.task('autoprefixer', function(){
 	gulp.src('css/style.css')
-			.pipe(autoprefixer({
-					browsers: ['last 3 versions'],
-					cascade: false
-			}))
+			.pipe(autoprefixer(autoprefixeroptions))
 			.pipe(rename({
 				suffix: '.min'
 			}))
 			.pipe(gulp.dest('css'))
 });
 
+// ========================================================
+// Watch task =================================================
+// ========================================================
 gulp.task('watch', function(){
 	watch('scripts/*.js', batch(function (events, done) {
-			gulp.start('compress', done);
+			gulp.start('scripts', done);
 	}));
 	watch('scss/**/*.scss', batch(function (events, done) {
 			gulp.start('sass', done);
@@ -156,15 +222,19 @@ gulp.task('watch', function(){
 	watch(['css/style.min.css', '*.html', '/images/*'], batch(function(events, done) {
 		gulp.start('dist', done);
 	}))
-	browserSync.init({ server: {baseDir: "./dist/"} });
+	gulp.start('browserSync');
 	watch('scss/**/*.scss', ['sass']).on('change', browserSync.reload);
-	watch('scripts/*.js', ['compress']).on('change', browserSync.reload);
+	watch('scripts/*.js', ['scripts']).on('change', browserSync.reload);
+	if ( util.env.zip == true ) {
+		gulp.start('zip');
+	}
 });
 
+// ========================================================
+// Dist task - syncs images and inlines the styling and scripts into the index.html =======
+// ========================================================
 gulp.task('dist', function(){
-
-		gulp.src('./images/*.{jpg,gif,png,svg}').pipe(gulp.dest('./dist/images'));
-
+		syncy(['./images/*'], './dist/').then(() => {done();}).catch((err) => {done(err);});
 		gulp.src('index.html')
 			.pipe(inline({
 				base: './',
@@ -174,7 +244,34 @@ gulp.task('dist', function(){
 				ignore: ['./css/style.css']
 			}))
 			.pipe(gulp.dest('dist/'));
+			util.log(util.colors.magenta('Dist successfully sync the images and inlined your styles and scripts into the dist/index.html'));
+});
 
-			gulp.src('dist/**').pipe(zip('archive.zip')).pipe(gulp.dest('dist'));
+// ========================================================
+// Zips the contents of the dist folder ready for shipping =======================
+// ========================================================
+gulp.task('zip', function(){
+	runSequence(['cleanZip'], 'createZip');
+});
 
+gulp.task('createZip', function(){
+	gulp.src('dist/**')
+		.pipe(zip('archive.zip'))
+		.pipe(gulp.dest('dist'));
+		util.log(util.colors.magenta('Distribution zip created successfully...'));
+});
+
+gulp.task('cleanZip', function(){
+	return del(['dist/archive.zip']);
+});
+
+// ========================================================
+// browserSync init =============================================
+// ========================================================
+gulp.task('browserSync', function(){
+	browserSync.init({
+		server: {
+			baseDir: "./dist/"
+		}
+	});
 });
