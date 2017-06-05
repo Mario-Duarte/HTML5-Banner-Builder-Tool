@@ -4,7 +4,6 @@
   "main": "Gulpfile.js",
   "dependencies": {
     "fs-extra": "^0.30.0",
-    "gulp": "^3.9.1",
     "gulp-autoprefixer": "^3.1.1",
     "gulp-batch": "^1.0.5",
     "gulp-build": "^0.5.3",
@@ -19,7 +18,10 @@
     "gulp-zip": "^3.2.0",
     "node-neat": "^1.7.2"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "browser-sync": "^2.18.12",
+    "gulp": "^3.9.1"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
