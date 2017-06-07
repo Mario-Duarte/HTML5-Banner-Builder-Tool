@@ -6,6 +6,8 @@ This framework fits those who prefer to develop banners by hand coding them oppo
 
 From junior to the more experience developer, any one can take advantage and use this simple framework.
 
+***Important!*** V.3 is not backwards compatible, if you just upgraded it will require some changes in the structure of your folder, see bellow for the new folder structure.
+
 ---
 
 ## Dependencies
