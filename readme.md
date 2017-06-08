@@ -1,16 +1,16 @@
-# HTML5 Banners Framework
+# HTML5 Banners Builder Tool
 
-Created this framework using gulp to automate the process of building HTML5 banners and save time while building large campaigns.
+Created this tool using gulp to automate the process of building HTML5 banners and save time while building large campaigns.
 
-This framework fits those who prefer to develop banners by hand coding them opposed to use unreliable tools or software that require the use of external libraries.
+This tool fits those who prefer to develop banners by hand coding them opposed to use unreliable tools or software that require the use of external libraries.
 
-From junior to the more experience developer, any one can take advantage and use this simple framework.
+From junior to the more experience developer, any one can take advantage and use this simple tool.
 
 ---
 
 ## Dependencies
 
-[![devDependency Status](https://david-dm.org/Mario-Duarte/HTML5-Banner-Framework.svg)](https://david-dm.org/Mario-Duarte/HTML5-Banner-Framework)
+[![devDependency Status](https://david-dm.org/Mario-Duarte/HTML5-Banner-Builder-Tool.svg)](https://david-dm.org/Mario-Duarte/HTML5-Banner-Builder-Tool)
 
 - [node - latest stable release](https://nodejs.org/en/)
 - [gulp ~v.3.9.1](http://gulpjs.com/)
