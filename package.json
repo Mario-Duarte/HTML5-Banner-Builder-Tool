@@ -1,5 +1,5 @@
 {
-	"name": "HTML5-Banner-Framework",
+	"name": "HTML5-Banner-Builder-Tool",
 	"version": "3.0.0",
 	"main": "Gulpfile.js",
 	"dependencies": {
