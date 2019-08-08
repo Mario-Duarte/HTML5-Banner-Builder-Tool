@@ -1,277 +1,198 @@
-// ========================================================
-// Load in all the required libs =======================================
-// ========================================================
-var gulp = require('gulp'),
-		browserSync = require('browser-sync').create(),
-		syncy = require('syncy'),
-		fs = require('fs-extra'),
-		gulpIf = require('gulp-if'),
-		sass = require('gulp-sass'),
-		sourcemaps = require('gulp-sourcemaps'),
-		autoprefixer = require('gulp-autoprefixer'),
-		runSequence = require('run-sequence'),
-		plumber = require('gulp-plumber'),
-		uglify = require('gulp-uglify'),
-		watch = require('gulp-watch'),
-		batch = require('gulp-batch'),
-		rename = require("gulp-rename"),
-		inline = require('gulp-inline'),
-		minifyCss = require('gulp-minify-css'),
-		zip = require('gulp-zip'),
-		util = require('gulp-util'),
-		del = require('del'),
-		stripCssComments = require('gulp-strip-css-comments'),
-		stripDebug = require('gulp-strip-debug'),
-		neat = require('node-neat').includePaths; // neat documentation can be found at: http://neat.bourbon.io/docs/latest/
+/*
+*/
 
-// ========================================================
-// Options and other variables
-// ========================================================
+// Gulp
+const { watch, series, parallel, src, dest } = require('gulp');
 
-var autoprefixeroptions = {
-		browsers: ['last 3 versions', 'IE 10', 'IE 11'],
-		cascade: false
-};
+//Scripts requires
+const minify = require('gulp-minify');
+const stripDebug = require('gulp-strip-debug');
+const jshint = require('gulp-jshint');
+const order = require('gulp-order');
 
-var sassOptions = {
-	outputStyle: 'compressed',
-	includePaths: require('node-neat').includePaths
-};
+//Styles requires
+const sass = require('gulp-sass');
+const autoprefixer = require('gulp-autoprefixer');
+const stripCssComments = require('gulp-strip-css-comments');
 
-// ========================================================
-// Help task that outputs into the console all the commands and their options =========
-// ========================================================
-gulp.task('help', function() {
-	util.log(util.colors.cyan('========='));
-	util.log(util.colors.cyan('Gulp help - task list'));
-	util.log(util.colors.cyan('========='));
-	util.log(util.colors.magenta('gulp', util.colors.cyan('--build --sync --zip'), util.colors.white(' | optional parameters')));
-	util.log(util.colors.magenta('gulp build'));
-	util.log(util.colors.magenta('gulp watch', util.colors.cyan('--dev --zip'), util.colors.white(' | optional parameters')));
-	util.log(util.colors.magenta('gulp zip'));
-	util.log(util.colors.cyan('For more information please read the readme.md file provided.'));
-});
+sass.compiler = require('sass');
 
-// ========================================================
-// Default task ================================================
-// ========================================================
-gulp.task('default', function() {
-	if ( util.env.build == true ) {
-		gulp.start('build');
-	} else {
-		runSequence(['sass','autoprefixer', 'scripts'], 'dist')
-		if ( util.env.sync == true ) {
-			gulp.start('browserSync');
-		}
-		if ( util.env.zip == true ) {
-			gulp.start('zip');
-		}
+//Tools and others requires
+const inline = require('gulp-inline');
+const argv = require('minimist')(process.argv.slice(2));
+const gulpif = require('gulp-if');
+const del = require('del');
+const fileSync = require('gulp-file-sync');
+const rename = require('gulp-rename');
+const log = require('fancy-log');
+const c = require('ansi-colors');
+const concat = require('gulp-concat');
+const fs = require('fs-extra');
+
+// Setup directories object
+const dir = {
+	input: 'src/',
+	get inputScripts() { return this.input + 'scripts/'; },
+	get inputStyles() { return this.input + 'scss/'; },
+	get inputAssets() { return this.input + 'assets/' },
+	output: 'dist/',
+	get outputScripts() { return this.input + 'js/'; },
+	get outputStyles() { return this.input + 'css/'; },
+	get outputAssets() { return this.output + 'assets/'; }
+
+}
+
+// Template code to be added when setup is ran
+const template = {
+    html : `
+        <!doctype html>
+        <html lang="en">
+        <head>
+        <meta charset ="utf-8">
+        <title>XXX</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="ad.size" content="width=XXX,height=XXX">
+        <link rel="stylesheet" href="css/style.css">
+        <script type="text/javascript">
+            // Uncomment if clicktag is required for the banner
+            // ==============================
+            // var clickTag = "https://google.com/";
+            // ==============================
+        </script>
+        </head>
+        <body>
+            <!--<a href="javascript:window.open(window.clickTag)">-->
+                <div id="add">
+                </div>
+            <!--</a>-->
+        </body>
+        <script src="js/app.js" type="text/javascript"></script>
+        </html>
+    `,
+    style : `
+        //Sets all variables
+
+        $width : 0px;
+        $height : 0px;
+
+        // Setting the dev var to true will centralize the banner in the window
+        // and place a border around, you can also use this as you build your banner
+        $dev : false;
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            position: relative;
+            @if $dev == true {
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+        }
+
+        #add {
+        width: $width;
+        height: $height;
+        background-color: white;
+        position: relative;
+        overflow: hidden;
+        @if $dev == true {
+            border: 1px dashed silver;
+        }
+        }
+    `,
+    scripts : `
+        var add = document.getElementById('add');
+
+        document.addEventListener("DOMContentLoaded", function(){
+            // Main javascript code goes here
+        }
+    `
+}
+
+// Autoprefixer options
+const optAutoprefixer = {
+	overrideBrowserslist: ['Firefox >= 50', 'Chrome >= 60', 'safari >= 10', 'Edge >= 15'],
+	remove: false,
+	cascade: false
+}
+
+function setup(cb) {
+    log(c.magenta(`Setting up tree structure...`));
+    // List of folders to be created on setup, feel free to add more as needed
+    const dirs = [dir.input, dir.inputScripts, dir.inputStyles, dir.inputAssets, dir.output,dir.outputAssets, dir.outputScripts, dir.outputStyles, dir.inputScripts + '/vendor'];
+
+    log(c.magenta(`Creating ${dirs.length} folders...`));
+
+    for (let i=0; i<dirs.length; i++) {
+        const directory = dirs[i];
+        fs.mkdir(directory, function(err) {
+            // Return the error if the error was not caused by the folder already existing
+            if (err && err.code != 'EEXIST') return console.error(err)
+            log(c.magenta(`Created ${directory} folder successfully!`));
+        });
+    }
+    
+    cb();
+}
+
+function clean(cb) {
+	log(c.magenta(`Cleaning the contents of ${dir.outputScripts}, ${dir.outputStyles} and ${dir.outputImages} folders...`));
+    del.sync([dir.outputScripts, dir.outputStyles, dir.outputImages]);
+	cb();
+}
+
+function syncfiles(cb) {
+    log(c.magenta(`Synchronizing the assets folder from ${dir.inputAssets} to ${dir.outputAssets}, this will ignore all js and css files.`));
+	fileSync(dir.inputAssets, dir.outputAssets, {
+		recursive: true,
+		ignore: ['js', 'css']
+	})
+	cb();
+}
+
+function scripts(cb) {
+	log(c.magenta(`Compiling scripts to ${dir.outputScripts}`));
+	return src( dir.inputScripts + '**/*.js')
+	.pipe(order([
+		"scripts/app.js"
+		// "scripts/**/!(app)*.js"
+	], { base: dir.input }))
+	//.pipe(gulpif(argv.prod,minify()))
+	.pipe(concat('app.js'))
+	.pipe(gulpif(argv.prod, stripDebug()))
+	.pipe(dest(dir.outputScripts));
+	cb();
+}
+
+function styles(cb) {
+	log(c.magenta(`Compiling styles to ' ${dir.outputStyles}`));
+	return src(dir.inputStyles + '**/*.scss')
+	.pipe(gulpif(argv.prod, stripCssComments()))
+	.pipe(sass({outputStyle: 'compressed'}).on('error', sass.logError))
+	.pipe(autoprefixer(optAutoprefixer))
+	.pipe(dest(dir.outputStyles));
+	cb();
+}
+
+function main(cb) {
+	if (argv.prod) {
+		//dir.output = 'dist/';
 	}
-});
+	log(c.red('Output is set to: '), c.white(dir.output));
+	cb();
+}
 
-// ========================================================
-// Gulp build Task - creates the neccessary folders and file templates for the banner =====
-// ========================================================
-gulp.task('build', function(){
+// function watcher(cb) {
+// 	log(c.magenta('Watching for changes on ' + dir.input));
+// 	watch(dir.input + '**', parallel(syncfiles, scripts, styles));
+// 	cb();
+// }
 
-	var indexTemplate = `<!doctype html>
-	<html lang="en">
-	<head>
-	<meta charset ="utf-8">
-	<title>XXX</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-	<meta name="ad.size" content="width=XXX,height=XXX">
-	<link rel="stylesheet" href="css/style.css">
-	<script type="text/javascript">
-		// Uncomment if clicktag is required for the banner
-		// ==============================
-		// var clickTag = "https://google.com/";
-		// ==============================
-	</script>
-	</head>
-	<body>
-		<!--<a href="javascript:window.open(window.clickTag)">-->
-			<div id="add">
-			</div>
-		<!--</a>-->
-	</body>
 
-	<script type="text/javascript">
-		var add = document.getElementById('add');
-	</script>
-
-	</html>`;
-
-	var scssTemplate = `//Sets all variables
-
-	// enabling this will centralize the banner in the window
-	// and place a boder arround, you can also use this as
-	// you build your banner
-	$dev : false;
-
-	$width : 0px;
-	$height : 0px;
-
-	html, body {
-		margin: 0;
-		padding: 0;
-		position: relative;
-		@if $dev == true {
-			height: 100%;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-		}
-	}
-
-	#add {
-	width: $width;
-	height: $height;
-	background-color: white;
-	position: relative;
-	overflow: hidden;
-	@if $dev == true {
-		border: 1px dashed silver;
-	}
-	}`
-
-	fs.mkdirs('scss/', function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('scss/'), ' successfully!'));
-	})
-
-	fs.mkdirs('scripts/vendor/', function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('scripts/vendor'), ' successfully!'));
-	})
-
-	fs.mkdirs('css/', function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('css/'), ' successfully!'));
-	})
-
-	fs.mkdirs('images/', function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('images/'), ' successfully!'));
-	})
-
-	fs.outputFile('index.html', indexTemplate, function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('index.html'), ' successfully!'));
-	})
-
-	fs.outputFile('scss/style.scss', scssTemplate, function (err) {
-		if (err) return console.error(err)
-		util.log(util.colors.blue('Built ', util.colors.white.underline('style.scss'), ' successfully!'));
-	})
-
-});
-
-// ========================================================
-// sass task ==================================================
-// ========================================================
-gulp.task('sass', function () {
-	if ( util.env.dev == true ) { var dev = false; } else { var dev = true; }
-	return gulp.src('./scss/**/*.scss')
-		.pipe(sass(sassOptions).on('error', sass.logError))
-		.pipe(gulpIf(dev, stripCssComments()))
-		.pipe(sourcemaps.write('./css'))
-		.pipe(gulp.dest('./css'));
-});
-
-// ========================================================
-// scripts task ================================================
-// ========================================================
-gulp.task('scripts', function() {
-	if ( util.env.dev == true ) { var dev = false; } else { var dev = true; }
-	return gulp.src('./scripts/*.js')
-		.pipe(plumber())
-		.pipe(gulpIf(dev, stripDebug()))
-		.pipe(uglify())
-		.pipe(rename({
-			suffix: '.min'
-		}))
-		.pipe(gulp.dest('./js/'));
-});
-
-// ========================================================
-// autoprefixer task =============================================
-// ========================================================
-gulp.task('autoprefixer', function(){
-	gulp.src('css/style.css')
-			.pipe(autoprefixer(autoprefixeroptions))
-			.pipe(rename({
-				suffix: '.min'
-			}))
-			.pipe(gulp.dest('css'))
-});
-
-// ========================================================
-// Watch task =================================================
-// ========================================================
-gulp.task('watch', function(){
-	watch('scripts/*.js', batch(function (events, done) {
-			gulp.start('scripts', done);
-	}));
-	watch('scss/**/*.scss', batch(function (events, done) {
-			gulp.start('sass', done);
-	}));
-	watch('css/style.css', batch(function(events, done) {
-		gulp.start('autoprefixer', done);
-	}));
-	watch(['css/style.min.css', '*.html', '/images/*'], batch(function(events, done) {
-		gulp.start('dist', done);
-	}))
-	gulp.start('browserSync');
-	watch('scss/**/*.scss', ['sass']).on('change', browserSync.reload);
-	watch('scripts/*.js', ['scripts']).on('change', browserSync.reload);
-	if ( util.env.zip == true ) {
-		gulp.start('zip');
-	}
-});
-
-// ========================================================
-// Dist task - syncs images and inlines the styling and scripts into the index.html =======
-// ========================================================
-gulp.task('dist', function(){
-		syncy(['./images/*'], './dist/').then(() => {done();}).catch((err) => {done(err);});
-		gulp.src('index.html')
-			.pipe(inline({
-				base: './',
-				js: uglify,
-				css: minifyCss,
-				disabledTypes: ['svg', 'img'], // Only inline css and js
-				ignore: ['./css/style.css']
-			}))
-			.pipe(gulp.dest('dist/'));
-			util.log(util.colors.magenta('Dist successfully sync the images and inlined your styles and scripts into the dist/index.html'));
-});
-
-// ========================================================
-// Zips the contents of the dist folder ready for shipping =======================
-// ========================================================
-gulp.task('zip', function(){
-	runSequence(['cleanZip'], 'createZip');
-});
-
-gulp.task('createZip', function(){
-	gulp.src('dist/**')
-		.pipe(zip('archive.zip'))
-		.pipe(gulp.dest('dist'));
-		util.log(util.colors.magenta('Distribution zip created successfully...'));
-});
-
-gulp.task('cleanZip', function(){
-	return del(['dist/archive.zip']);
-});
-
-// ========================================================
-// browserSync init =============================================
-// ========================================================
-gulp.task('browserSync', function(){
-	browserSync.init({
-		server: {
-			baseDir: "./dist/"
-		}
-	});
-});
+exports.default = main;
+exports.scripts = scripts;
+exports.styles = styles;
+exports.syncfiles = syncfiles;
+exports.setup = setup;
