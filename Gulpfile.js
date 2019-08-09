@@ -204,7 +204,7 @@ function syncfiles(cb) {
 
 /**
  * SCRIPTS
- * This will compile all js files into a single main.js file compiling and modern 
+ * This will compile all js files into a single main.js file compiling any modern 
  * javascript down to ecma script 5
  * 
  * @param {*} cb 
