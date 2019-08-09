@@ -43,7 +43,7 @@ const dir = {
 
 }
 
-// Template code to be added when setup is ran
+// Template code object to be added when setup is ran
 const template = {
     html : `
         <!doctype html>
@@ -119,6 +119,14 @@ const optAutoprefixer = {
 	cascade: false
 }
 
+/**
+ * SETUP
+ * This will create the standard tree folder structure for you to start development of 
+ * a new banner, It will also include the index.html, style.scss and main.js 
+ * file templates
+ * 
+ * @param {*} cb 
+ */
 function setup(cb) {
     log(c.magenta(`Setting up tree structure...`));
     // List of folders to be created on setup, feel free to add more as needed
@@ -166,12 +174,25 @@ function setup(cb) {
     cb();
 }
 
+/**
+ * CLEAN
+ * This will clean the contents of the defined output folders
+ * 
+ * @param {*} cb 
+ */
 function clean(cb) {
-	log(c.red(`Cleaning the contents of ${dir.outputScripts}, ${dir.outputStyles} and ${dir.outputImages} folders...`));
-    del.sync([dir.outputScripts, dir.outputStyles, dir.outputImages]);
+	log(c.red(`Cleaning the contents of ${dir.outputScripts}, ${dir.outputStyles} and ${dir.outputAssets} folders...`));
+    del.sync([dir.outputScripts, dir.outputStyles, dir.outputAssets]);
 	cb();
 }
 
+/**
+ * SYNCFILES
+ * This function will ensure that the assets folder are one way synchronized from
+ * src->dist
+ * 
+ * @param {*} cb 
+ */
 function syncfiles(cb) {
     log(c.magenta(`Synchronizing the assets folder from ${dir.inputAssets} to ${dir.outputAssets}, this will ignore all js and css files.`));
 	fileSync(dir.inputAssets, dir.outputAssets, {
@@ -181,6 +202,13 @@ function syncfiles(cb) {
 	cb();
 }
 
+/**
+ * SCRIPTS
+ * This will compile all js files into a single main.js file compiling and modern 
+ * javascript down to ecma script 5
+ * 
+ * @param {*} cb 
+ */
 function scripts(cb) {
 	log(c.magenta(`Compiling scripts to ${dir.outputScripts}`));
 	return src( dir.inputScripts + '**/*.js')
@@ -196,6 +224,12 @@ function scripts(cb) {
 	cb();
 }
 
+/**
+ * STYLES
+ * Compiles all sass files to css with autoprefixer and scrip comments
+ * 
+ * @param {*} cb 
+ */
 function styles(cb) {
 	log(c.magenta(`Compiling styles to ' ${dir.outputStyles}`));
 	return src(dir.inputStyles + '**/*.scss')
@@ -206,6 +240,13 @@ function styles(cb) {
 	cb();
 }
 
+/**
+ * INLINEFILES
+ * Part of the distribution process, this function will inline all styles and scripts
+ * linked in the document, an ignore list can be crated if required
+ * 
+ * @param {*} cb 
+ */
 function inlineFiles(cb) {
     log(c.magenta(`Inlining styles and scripts to index.html and outputting to ${dir.output}.`));
     return src(dir.input + 'index.html')
@@ -220,6 +261,12 @@ function inlineFiles(cb) {
     cb();
 }
 
+/**
+ * MAIN
+ * 
+ * 
+ * @param {*} cb 
+ */
 function main(cb) {
 	if (argv.prod) {
 		//dir.output = 'dist/';
@@ -228,42 +275,76 @@ function main(cb) {
 	cb();
 }
 
+/**
+ * DELETEZIP
+ * This will delete the given zip file before creating the new one
+ * if a zipName is provided in the argv it will only delete that specific zip file
+ * if is found in the 
+ * 
+ * @param {*} cb 
+ */
 function deleteZip(cb) {
-    del.sync(dir.output + '/archive.zip');
-    log(c.red(`Removed archive.zip from ${dir.output}`));
+    let archiveName = 'archive.zip';
+    if (argv.zipName) { archiveName = argv.zipName; }
+    del.sync(dir.output + '/' + archiveName);
+    log(c.red(`Removed ${archiveName} from ${dir.output}`));
     cb();
 }
 
+/**
+ * CREATEZIP
+ * This will create a zip with the contents of the set output folder
+ * you can pass as an argv to it the name you want to give to the zipfile
+ * as follows:
+ * 
+ *  gulp zipDist  --zipName=archive.zip
+ * 
+ * @param {*} cb 
+ */
 function createZip(cb) {
-    log(c.magenta(`Zip archive.zip created from ${dir.output}`));
+    let archiveName = 'archive.zip';
+    if (argv.zipName) { archiveName = argv.zipName; }
+    log(c.magenta(`Distribution Zip ${archiveName} created from ${dir.output}`));
     return src(dir.output+'/**')
-    .pipe(zip('archive.zip'))
+    .pipe(zip(archiveName))
     .pipe(dest(dir.output));
     cb();
 }
 
+/**
+ * BROWSERSYNC
+ * This will run the browser sync on the defined output folder
+ * 
+ * @param {*} cb 
+ */
 function browsersync(cb) {
     browserSync.init({
 		server: {
-			baseDir: "./dist/"
+			baseDir: "./" + dir.output
 		}
 	});
 
     cb();
 }
 
-// function watcher(cb) {
-// 	log(c.magenta('Watching for changes on ' + dir.input));
-// 	watch(dir.input + '**', parallel(syncfiles, scripts, styles));
-// 	cb();
-// }
+/**
+ * WATCHER
+ * This will watch for changed in the source files and run the
+ * necessary functions according to the type of file changed
+ * 
+ * @param {*} cb 
+ */
+function watcher(cb) {
+    log(c.magenta('Watching for changes on ' + dir.input));
+    watch(dir.input + 'index.html', series(inlineFiles, browserSync.reload));
+    watch(dir.inputScripts + '**', series(scripts, inlineFiles, browserSync.reload));
+    watch(dir.inputAssets + '**', series(syncfiles, browserSync.reload));
+    watch(dir.inputStyles + '**', series(styles, inlineFiles, browserSync.reload));
+	cb();
+}
 
-
-exports.default = main;
-exports.scripts = scripts;
-exports.styles = styles;
-exports.syncfiles = syncfiles;
-exports.build = setup;
-exports.sync = browsersync;
-exports.zipDist = series(deleteZip, createZip);
-exports.dist = series(scripts, styles, syncfiles, inlineFiles);
+exports.default = parallel(browsersync,watcher);
+exports.watch = parallel(browsersync,watcher);
+exports.setup = setup;
+exports.build = series(scripts, styles, syncfiles, inlineFiles);
+exports.dist = series(deleteZip, createZip);
