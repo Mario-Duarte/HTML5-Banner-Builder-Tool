@@ -336,10 +336,22 @@ function browsersync(cb) {
  */
 function watcher(cb) {
     log(c.magenta('Watching for changes on ' + dir.input));
-    watch(dir.input + 'index.html', series(inlineFiles, browserSync.reload));
-    watch(dir.inputScripts + '**', series(scripts, inlineFiles, browserSync.reload));
-    watch(dir.inputAssets + '**', series(syncfiles, browserSync.reload));
-    watch(dir.inputStyles + '**', series(styles, inlineFiles, browserSync.reload));
+
+    log(argv);
+    
+    if (argv.zip) {
+        log(c.magenta(`Watch with Zip emabled->`));
+        watch(dir.input + 'index.html', series(inlineFiles,  deleteZip, createZip, browserSync.reload));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles, deleteZip, createZip, browserSync.reload));
+        watch(dir.inputAssets + '**', series(syncfiles, deleteZip, createZip, browserSync.reload));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles, deleteZip, createZip, browserSync.reload));
+    } else {
+        watch(dir.input + 'index.html', series(inlineFiles, browserSync.reload));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles, browserSync.reload));
+        watch(dir.inputAssets + '**', series(syncfiles, browserSync.reload));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles, browserSync.reload));
+    }
+    
 	cb();
 }
 
