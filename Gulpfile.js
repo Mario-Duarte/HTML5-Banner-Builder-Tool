@@ -327,6 +327,11 @@ function browsersync(cb) {
     cb();
 }
 
+function reloadBrowser(cb) {
+    browserSync.reload();
+    cb();
+}
+
 /**
  * WATCHER
  * This will watch for changed in the source files and run the
@@ -341,22 +346,22 @@ function watcher(cb) {
     
     if (argv.zip) {
         log(c.magenta(`Watch with Zip emabled->`));
-        watch(dir.input + 'index.html', series(inlineFiles,  deleteZip, createZip, browserSync.reload));
-        watch(dir.inputScripts + '**', series(scripts, inlineFiles, deleteZip, createZip, browserSync.reload));
-        watch(dir.inputAssets + '**', series(syncfiles, deleteZip, createZip, browserSync.reload));
-        watch(dir.inputStyles + '**', series(styles, inlineFiles, deleteZip, createZip, browserSync.reload));
+        watch(dir.input + 'index.html', series(inlineFiles,  deleteZip, createZip, reloadBrowser));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles, deleteZip, createZip, reloadBrowser));
+        watch(dir.inputAssets + '**', series(syncfiles, deleteZip, createZip, reloadBrowser));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles, deleteZip, createZip, reloadBrowser));
     } else {
-        watch(dir.input + 'index.html', series(inlineFiles, browserSync.reload));
-        watch(dir.inputScripts + '**', series(scripts, inlineFiles, browserSync.reload));
-        watch(dir.inputAssets + '**', series(syncfiles, browserSync.reload));
-        watch(dir.inputStyles + '**', series(styles, inlineFiles, browserSync.reload));
+        watch(dir.input + 'index.html', series(inlineFiles, reloadBrowser));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles, reloadBrowser));
+        watch(dir.inputAssets + '**', series(syncfiles, reloadBrowser));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles, reloadBrowser));
     }
     
 	cb();
 }
 
 exports.default = parallel(browsersync,watcher);
-exports.watch = parallel(browsersync,watcher);
+exports.watch = series(browsersync,watcher);
 exports.setup = setup;
 exports.build = series(scripts, styles, syncfiles, inlineFiles);
 exports.dist = series(deleteZip, createZip);
