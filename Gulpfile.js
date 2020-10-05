@@ -30,6 +30,8 @@ const concat = require('gulp-concat');
 const fs = require('fs-extra');
 const zip = require('gulp-zip');
 
+let archiveName = 'archive.zip';
+
 // Setup directories object
 const dir = {
 	input: 'src/',
@@ -121,11 +123,11 @@ const optAutoprefixer = {
 
 /**
  * SETUP
- * This will create the standard tree folder structure for you to start development of 
- * a new banner, It will also include the index.html, style.scss and main.js 
+ * This will create the standard tree folder structure for you to start development of
+ * a new banner, It will also include the index.html, style.scss and main.js
  * file templates
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function setup(cb) {
     log(c.magenta(`Setting up tree structure...`));
@@ -161,7 +163,7 @@ function setup(cb) {
     } else {
         log(c.magenta(`style.scss file already exists, no action taken!`));
     }
-    
+
     if (!fs.existsSync(dir.inputStyles + 'style.scss')) {
         fs.outputFile(dir.inputScripts + 'main.js', template.scripts, function (err) {
             if (err && err.code != 'EEXIST') return console.error(err)
@@ -170,15 +172,15 @@ function setup(cb) {
     } else {
         log(c.magenta(`main.js file already exists, no action taken!`));
     }
-    
+
     cb();
 }
 
 /**
  * CLEAN
  * This will clean the contents of the defined output folders
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function clean(cb) {
 	log(c.red(`Cleaning the contents of ${dir.outputScripts}, ${dir.outputStyles} and ${dir.outputAssets} folders...`));
@@ -190,8 +192,8 @@ function clean(cb) {
  * SYNCFILES
  * This function will ensure that the assets folder are one way synchronized from
  * src->dist
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function syncfiles(cb) {
     log(c.magenta(`Synchronizing the assets folder from ${dir.inputAssets} to ${dir.outputAssets}, this will ignore all js and css files.`));
@@ -204,10 +206,10 @@ function syncfiles(cb) {
 
 /**
  * SCRIPTS
- * This will compile all js files into a single main.js file compiling any modern 
+ * This will compile all js files into a single main.js file compiling any modern
  * javascript down to ecma script 5
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function scripts(cb) {
 	log(c.magenta(`Compiling scripts to ${dir.outputScripts}`));
@@ -227,8 +229,8 @@ function scripts(cb) {
 /**
  * STYLES
  * Compiles all sass files to css with autoprefixer and scrip comments
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function styles(cb) {
 	log(c.magenta(`Compiling styles to ' ${dir.outputStyles}`));
@@ -244,8 +246,8 @@ function styles(cb) {
  * INLINEFILES
  * Part of the distribution process, this function will inline all styles and scripts
  * linked in the document, an ignore list can be crated if required
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function inlineFiles(cb) {
     log(c.magenta(`Inlining styles and scripts to index.html and outputting to ${dir.output}.`));
@@ -263,9 +265,9 @@ function inlineFiles(cb) {
 
 /**
  * MAIN
- * 
- * 
- * @param {*} cb 
+ *
+ *
+ * @param {*} cb
  */
 function main(cb) {
 	if (argv.prod) {
@@ -279,12 +281,11 @@ function main(cb) {
  * DELETEZIP
  * This will delete the given zip file before creating the new one
  * if a zipName is provided in the argv it will only delete that specific zip file
- * if is found in the 
- * 
- * @param {*} cb 
+ * if is found in the
+ *
+ * @param {*} cb
  */
 function deleteZip(cb) {
-    let archiveName = 'archive.zip';
     if (argv.zipName) { archiveName = argv.zipName; }
     del.sync(dir.output + '/' + archiveName);
     log(c.red(`Removed ${archiveName} from ${dir.output}`));
@@ -296,13 +297,12 @@ function deleteZip(cb) {
  * This will create a zip with the contents of the set output folder
  * you can pass as an argv to it the name you want to give to the zipfile
  * as follows:
- * 
+ *
  *  gulp zipDist  --zipName=archive.zip
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function createZip(cb) {
-    let archiveName = 'archive.zip';
     if (argv.zipName) { archiveName = argv.zipName; }
     log(c.magenta(`Distribution Zip ${archiveName} created from ${dir.output}`));
     return src(dir.output+'/**')
@@ -314,8 +314,8 @@ function createZip(cb) {
 /**
  * BROWSERSYNC
  * This will run the browser sync on the defined output folder
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function browsersync(cb) {
     browserSync.init({
@@ -327,36 +327,31 @@ function browsersync(cb) {
     cb();
 }
 
-function reloadBrowser(cb) {
-    browserSync.reload();
-    cb();
-}
-
 /**
  * WATCHER
  * This will watch for changed in the source files and run the
  * necessary functions according to the type of file changed
- * 
- * @param {*} cb 
+ *
+ * @param {*} cb
  */
 function watcher(cb) {
     log(c.magenta('Watching for changes on ' + dir.input));
 
     log(argv);
-    
+
     if (argv.zip) {
         log(c.magenta(`Watch with Zip emabled->`));
-        watch(dir.input + 'index.html', series(inlineFiles,  deleteZip, createZip, reloadBrowser));
-        watch(dir.inputScripts + '**', series(scripts, inlineFiles, deleteZip, createZip, reloadBrowser));
-        watch(dir.inputAssets + '**', series(syncfiles, deleteZip, createZip, reloadBrowser));
-        watch(dir.inputStyles + '**', series(styles, inlineFiles, deleteZip, createZip, reloadBrowser));
+        watch(dir.input + 'index.html', series(inlineFiles,  deleteZip, createZip));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles, deleteZip, createZip));
+        watch(dir.inputAssets + '**', series(syncfiles, deleteZip, createZip));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles, deleteZip, createZip));
     } else {
-        watch(dir.input + 'index.html', series(inlineFiles, reloadBrowser));
-        watch(dir.inputScripts + '**', series(scripts, inlineFiles, reloadBrowser));
-        watch(dir.inputAssets + '**', series(syncfiles, reloadBrowser));
-        watch(dir.inputStyles + '**', series(styles, inlineFiles, reloadBrowser));
+        watch(dir.input + 'index.html', series(inlineFiles));
+        watch(dir.inputScripts + '**', series(scripts, inlineFiles));
+        watch(dir.inputAssets + '**', series(syncfiles));
+        watch(dir.inputStyles + '**', series(styles, inlineFiles));
     }
-    
+
 	cb();
 }
 
