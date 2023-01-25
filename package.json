@@ -1,6 +1,6 @@
 {
     "name": "HTML5-Banner-Framework",
-    "version": "4.1.0",
+    "version": "4.2.0",
     "description": "This is a repo to be used when creating HTML5 Banners, this will auto generate all the base files and folders as create a dist .zip file of the banner ready to upload to you favourite add platform ",
     "main": "Gulpfile.js",
     "scripts": {
