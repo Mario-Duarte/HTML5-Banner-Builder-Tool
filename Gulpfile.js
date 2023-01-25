@@ -11,11 +11,12 @@ const stripDebug = require('gulp-strip-debug');
 const order = require('gulp-order');
 
 //Styles requires
-const sass = require('gulp-sass');
+const sass = require('gulp-sass')(require('node-sass'));;
 const autoprefixer = require('gulp-autoprefixer');
 const stripCssComments = require('gulp-strip-css-comments');
 
-sass.compiler = require('sass');
+
+
 
 //Tools and others requires
 const browserSync = require('browser-sync').create();
